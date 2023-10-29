@@ -3,8 +3,8 @@ File admin django
 """
 
 from django.contrib import admin
-from django.contrib.auth import UserAdmin as BaseUserAdmin
-from django.utils.translation import gettext_lazy as 
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils.translation import gettext_lazy as _ 
 
 from core import models
 
@@ -30,7 +30,7 @@ class UserAdmin(BaseUserAdmin):
                     'is_superuser',
                 )
             }
-        )
+        ),
         (_('Important dates'), {'fields': ('last_login', 'created_at', )})
     )
     readonly_fields = ['last_login', 'created_at']
@@ -39,10 +39,12 @@ class UserAdmin(BaseUserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': (
+                'first_name',
+                'last_name',
+                'email',
                 'cpf',
                 'password1',
                 'password2',
-                'name',
                 'is_active',
                 'is_staff',
                 'is_superuser'                
