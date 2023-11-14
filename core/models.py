@@ -93,7 +93,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class Account(models.Model):
     """Account for every user """
-    
+
     agency = models.CharField(max_length=4, default="0001")
     number = models.CharField(max_length=8)
     balance = models.DecimalField(max_digits=5, decimal_places=2)
@@ -102,3 +102,6 @@ class Account(models.Model):
         on_delete=models.DO_NOTHING
     )
     created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self) -> str:
+        return f'{self.agency} - {self.number}'
