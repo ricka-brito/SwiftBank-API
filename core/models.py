@@ -77,7 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=255, unique=True)
     url_imagem = models.ImageField(null=True, upload_to=user_image_field)
     phone_number = models.CharField(max_length=15)
-    declared_salary = models.DecimalField(max_digits=10, decimal_places=2)
+    declared_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
@@ -91,6 +91,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f'{self.first_name} {self.last_name}'
 
 
-
-
+class Account(models.Model):
+    """Account for every user """
     
+    agency = models.CharField(max_length=4, default="0001")
+    number = models.CharField(max_length=8)
+    balance = models.DecimalField(max_digits=5, decimal_places=2)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.DO_NOTHING
+    )
+    created_at = models.DateTimeField(default=timezone.now)

@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 import datetime
 import pymysql
+import sys
 
 
 pymysql.install_as_MySQLdb()
@@ -30,7 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9)oaubbw%i@1@(4$7ugr6c^949n#e8=*%7+q1)w*6m!uzqmqy*'
+SECRET_KEY = 'a52d22884a60138cf02ec94852746057'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -174,3 +175,7 @@ SIMPLE_JWT = {
 SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True
 }
+
+AUTH_PASSWORD_VALIDATORS = []
+
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '9b7b-189-57-188-42.ngrok-free.app']

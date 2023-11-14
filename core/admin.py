@@ -20,7 +20,7 @@ class UserAdmin(BaseUserAdmin):
                 'password',
             ),
         }),
-        (_('Personal info'), {"fields": ('id', 'first_name', 'last_name', 'cpf', 'url_image')}),
+        (_('Personal info'), {"fields": ('first_name', 'last_name', 'cpf', 'url_imagem')}),
         (
             _('Permissions'),
             {
@@ -43,7 +43,7 @@ class UserAdmin(BaseUserAdmin):
                 'last_name',
                 'email',
                 'cpf',
-                'url_image',
+                'url_imagem',
                 'password1',
                 'password2',
                 'is_active',
