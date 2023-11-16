@@ -71,8 +71,27 @@ class AccountViewSet(viewsets.ModelViewSet):
                 
                 account.save()
                 
-                return Response({"saldo": account.balance}, status=status.HTTP_200_OK)
+                return Response({"balance": account.balance}, status=status.HTTP_200_OK)
             
             return Response({'message': 'insufficient funds'}, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    @action(methods=['POST'], detail=True, url_path="deposit")
+    def deposit(self, request, pk=None):
+        account = Account.objects.filter(id=pk).first()
+        
+        serializers_received = serializers.DepositSerializer(request=request.data)
+        
+        if serializers_received.is_valid() and account:
+            balance = decimal.Decimal(account.balance)
+            deposit_amount = decimal.Decimal(serializers_received.validated_data.get('value'))
+            
+            account.balance = balance + deposit_amount
+            account.save()
+            
+            return Response({"balance": account.balance}, status=status.HTTP_200_OK)
+
         
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
