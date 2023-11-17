@@ -11,7 +11,7 @@ import random, decimal
 
 from rest_framework.decorators import action
 
-class AccountViewSet(viewsets.ModelViewSet):
+class AccountViewSet(viewsets.ReadOnlyModelViewSet):
     # "SELECT * FROM contas";
     queryset = Account.objects.all()
     authentication_classes = [authenticationJWT.JWTAuthentication]
@@ -31,32 +31,32 @@ class AccountViewSet(viewsets.ModelViewSet):
         
         return serializers.AccountSerializer
 
-    
-    def create(self, request, *args, **kwargs):
-        serializer = serializers.AccountSerializer(data=request.data)
-        if serializer.is_valid():
-            agency = '0001'
-            number = ''
-            for n in range(8):
-                number += str(random.randint(0, 9))
+
+    # def create(self, request, *args, **kwargs):
+    #     serializer = serializers.AccountSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         agency = '0001'
+    #         number = ''
+    #         for n in range(8):
+    #             number += str(random.randint(0, 9))
                 
-            account = Account(
-                user=self.request.user,
-                number=number,
-                agency=agency
-            )
+    #         account = Account(
+    #             user=self.request.user,
+    #             number=number,
+    #             agency=agency
+    #         )
             
-            account.balance = decimal.Decimal(0)
+    #         account.balance = decimal.Decimal(0)
             
-            account.save()
+    #         account.save()
             
-            return Response({'message': 'Created'}, status=status.HTTP_201_CREATED)
+    #         return Response({'message': 'Created'}, status=status.HTTP_201_CREATED)
         
-    @action(methods=['POST'], detail=True, url_path="withdraw")
+    @action(methods=['POST'], detail=False, url_path="withdraw")
     def withdraw(self, request, pk=None):
-        account = Account.objects.filter(id=pk).first()
+        account = Account.objects.filter(pk=self.request.user.id).first()
         
-        serializers_received = serializers.WithdrawSerializer(request=request.data)
+        serializers_received = serializers.WithdrawSerializer(data=request.data)
         
         if serializers_received.is_valid() and account:
             withdraw_amount = decimal.Decimal(serializers_received.validated_data.get('value'))
@@ -78,11 +78,11 @@ class AccountViewSet(viewsets.ModelViewSet):
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
-    @action(methods=['POST'], detail=True, url_path="deposit")
+    @action(methods=['POST'], detail=False, url_path="deposit")
     def deposit(self, request, pk=None):
-        account = Account.objects.filter(id=pk).first()
+        account = Account.objects.filter(pk=self.request.user.id).first()
         
-        serializers_received = serializers.DepositSerializer(request=request.data)
+        serializers_received = serializers.DepositSerializer(data=request.data)
         
         if serializers_received.is_valid() and account:
             balance = decimal.Decimal(account.balance)

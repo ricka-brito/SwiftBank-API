@@ -7,6 +7,11 @@ app_name = 'api'
 router = DefaultRouter()
 router.register('accounts', views.AccountViewSet)
 
+# api = views.AccountViewSet.as_view({
+#     'get': 'list',
+#     'post': 'create'
+# })
+
 
 urlpatterns = [
     path('', include(router.urls)),

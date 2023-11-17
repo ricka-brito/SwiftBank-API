@@ -20,6 +20,12 @@ def user_image_field(instance, filename):
     filename = f'{uuid.uuid4()}{ext}'
     
     return os.path.join('uploads', 'user', filename)
+
+class LoginAttempt(models.Model):
+    username = models.CharField(max_length=255)
+    successful = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(default=timezone.now)
+    ip = models.CharField(max_length=255)
     
     
 class UserManager(BaseUserManager):
@@ -90,18 +96,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
-
+    
 class Account(models.Model):
     """Account for every user """
 
     agency = models.CharField(max_length=4, default="0001")
     number = models.CharField(max_length=8)
     balance = models.DecimalField(max_digits=5, decimal_places=2)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.DO_NOTHING
+    user = models.OneToOneField(
+        User,
+        on_delete=models.DO_NOTHING,
     )
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self) -> str:
         return f'{self.agency} - {self.number}'
+
+
