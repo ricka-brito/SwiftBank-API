@@ -17,7 +17,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import AccessToken  # Import AccessToken
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import PermissionDenied
-
+from rest_framework.views import APIView
+from core.models import User
 
 
 
@@ -54,7 +55,6 @@ class ManagerUserAPiView(generics.RetrieveUpdateAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
     
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -129,3 +129,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             "access": str(access_token),
         }
         return Response(token_data, status=status.HTTP_200_OK)
+
+class CPFValidationView(APIView):
+    def post(self, request):
+        cpf_to_check = request.data.get('cpf')
+
+        try:
+            user = User.objects.get(cpf=cpf_to_check)
+            serializer = UserSerializer(user)
+            return Response({'exists': True}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({'exists': False}, status=status.HTTP_404_NOT_FOUND)

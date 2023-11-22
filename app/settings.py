@@ -178,4 +178,4 @@ SPECTACULAR_SETTINGS = {
 
 AUTH_PASSWORD_VALIDATORS = []
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '9b7b-189-57-188-42.ngrok-free.app']
+ALLOWED_HOSTS = ['*']

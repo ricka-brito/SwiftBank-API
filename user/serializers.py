@@ -103,4 +103,8 @@ class UserSerializer(serializers.ModelSerializer):
 
         return data
     
-    
+class CpfVerifierSerializer(serializers.ModelSerializer):
+    cpf = serializers.CharField()
+
+    class Meta:
+        fields = ['cpf']
