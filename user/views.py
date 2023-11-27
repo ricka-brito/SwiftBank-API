@@ -1,13 +1,15 @@
 """
 View for the user API.
 """
+import os
+import uuid
 from rest_framework.response import Response
 from rest_framework import (
     status,
     generics
 )
 from rest_framework_simplejwt import authentication as authenticationJWT
-from user.serializers import UserSerializer
+from user.serializers import UserSerializer, CpfVerifierSerializer, ImageUpdateSerializer
 from user.permissions import IsCreationOrIsAuthenticated 
 from rest_framework.decorators import action
 from django.utils import timezone
@@ -19,6 +21,9 @@ from django.contrib.auth import authenticate
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from core.models import User
+from rest_framework import viewsets
+from django.core.files.storage import FileSystemStorage
+
 
 
 
@@ -43,18 +48,42 @@ class ManagerUserAPiView(generics.RetrieveUpdateAPIView):
         else:
             raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
             
+    def patch(self, request, *args, **kwargs):
+        user = self.request.user
+        serializer = UserSerializer(user, data=request.data, partial=True)
 
-    @action(methods=['POST'], detail=True, url_path='upload-image')
-    def upload_image(self, request, pk=None):
-        """Upload an image to user"""
-        user = self.get_object()
-        serializer = self.get_serializer(user, data=request.data)
-        
+        profile_image = request.data['image']
+
+        # Save the image to the specified location
+        if profile_image:
+            fs = FileSystemStorage(location='vol/web/static/uploads/user/')
+            
+            ext = os.path.splitext(profile_image.name)[1]
+            name = f'{uuid.uuid4()}{ext}'
+            
+            filename = fs.save(name, profile_image)
+
+            # Update the user's profile image URL
+            user.url_imagem = fs.url(filename)  
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    # @action(methods=['POST'], detail=True, url_path='upload-image')
+    # def upload_image(self, request, pk=None):
+    #     """Upload an image to user"""
+    #     user = self.get_object()
+    #     serializer = self.get_serializer(user, data=request.data)
+        
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -131,6 +160,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         return Response(token_data, status=status.HTTP_200_OK)
 
 class CPFValidationView(APIView):
+    serializer_class = CpfVerifierSerializer()
+    
     def post(self, request):
         cpf_to_check = request.data.get('cpf')
 
@@ -140,3 +171,18 @@ class CPFValidationView(APIView):
             return Response({'exists': True}, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response({'exists': False}, status=status.HTTP_404_NOT_FOUND)
+
+# class ImgUpdateView(APIView):
+#     serializer_class = ImageUpdateSerializer()
+    
+#     def post(self, request):
+#         """Upload an image to user"""
+#         user = self.get_object()
+#         serializer = self.get_serializer(user, data=request.data)
+        
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    

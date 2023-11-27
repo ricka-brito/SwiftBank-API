@@ -34,7 +34,6 @@ class UserManager(BaseUserManager):
     @classmethod
     def normalize_cpf(self, cpf: str):
         """Method to remove the special characters of the cpf string"""
-
         return cpf.replace(".", "").replace("-", "").replace("/", "")
 
     def create_user(self, cpf, password=None, **extra_fields):
@@ -66,9 +65,9 @@ class Address(models.Model):
     neighborhood = models.CharField(max_length=255)
     house_number = models.CharField(max_length=255)
     city = models.CharField(max_length=255)
-    complement = models.CharField(max_length=255, null=True)
+    complement  = models.CharField(max_length=255, blank=True)
     cep = models.CharField(max_length=8)
-    reference = models.CharField(max_length=255, null=True)
+    reference = models.CharField(max_length=255, blank=True)
     uf = models.CharField(max_length=2)
 
     def __str__(self):
@@ -79,9 +78,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     cpf = models.CharField(max_length=11, unique=True)
     first_name = models.CharField(max_length=255, null=False)
-    last_name = models.CharField(max_length=255, null=False)
-    email = models.EmailField(max_length=255, unique=True)
-    url_imagem = models.ImageField(null=True, upload_to=user_image_field)
+    email = models.EmailField(max_length=255)
+    url_imagem = models.ImageField(null=True, upload_to='uploads/user/')
     phone_number = models.CharField(max_length=15)
     declared_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     is_active = models.BooleanField(default=True)
