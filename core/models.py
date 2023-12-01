@@ -111,3 +111,12 @@ class Account(models.Model):
         return f'{self.agency} - {self.number}'
 
 
+
+class Transaction(models.Model):
+    """Model for transaction"""
+    
+    sender = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="sender", null=False)
+    receiver = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="receiver", null=False)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.CharField(max_length=255, null=True, blank=True)
+    

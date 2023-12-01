@@ -5,9 +5,12 @@ from rest_framework import (
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt import authentication as authenticationJWT
-from core.models import Account
+from core.models import Account, Transaction
 from api import serializers
 import random, decimal
+from rest_framework.exceptions import PermissionDenied
+from datetime import timedelta
+from django.utils import timezone
 
 from rest_framework.decorators import action
 
@@ -95,3 +98,49 @@ class AccountViewSet(viewsets.ReadOnlyModelViewSet):
 
         
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TrasactionViewSet(viewsets.GenericViewSet):
+    queryset = Transaction.objects.all()
+    # serializer_class = serializers.TransactionDetailSerializer
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return serializers.TransactionDetailSerializer
+        return serializers.TransactionAddSerializer
+    
+    def create(self, request):
+        if request.user.id is not None:
+            if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                sender = request.user.account.id
+            else:
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        receiver = request.data.get("receiver")
+        value = request.data.get("value")
+        description = request.data.get("description")
+                        
+        transaction_serializer = serializers.TransactionSerializer(
+            data={
+                "sender": sender,
+                "receiver": receiver,
+                "value": value,
+                "description": description
+            }
+        )
+        print(transaction_serializer)
+        transaction_serializer.is_valid(raise_exception=True)
+        transaction_serializer.save()
+        
+        account_sender = Account.objects.get(id=sender)
+        account_sender.balance -= value 
+        account_sender.save()
+        
+        
+        account_receiver = Account.objects.get(id=receiver)
+        account_receiver.balance += value
+        account_receiver.save()
+
+
+        return Response({'message': 'Transfered'}, status=status.HTTP_200_OK)
