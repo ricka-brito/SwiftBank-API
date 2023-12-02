@@ -16,7 +16,7 @@ from django.utils import timezone
 from datetime import timedelta
 from core.models import LoginAttempt
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.tokens import AccessToken  # Import AccessToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken  # Import AccessToken
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -152,10 +152,13 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             ip=ip
         ).update(successful=True)
 
-        # Generate JWT token
+        # Generate JWT tokens
         access_token = AccessToken.for_user(user)
+        refresh_token = RefreshToken.for_user(user)
+
         token_data = {
             "access": str(access_token),
+            "refresh": str(refresh_token),
         }
         return Response(token_data, status=status.HTTP_200_OK)
 

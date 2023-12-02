@@ -14,23 +14,48 @@ from django.utils import timezone
 
 from rest_framework.decorators import action
 
-class AccountViewSet(viewsets.ReadOnlyModelViewSet):
+class AccountViewSet(viewsets.ViewSet):
     # "SELECT * FROM contas";
     queryset = Account.objects.all()
     authentication_classes = [authenticationJWT.JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
-    def get_queryset(self):
-        """Get account for authenticated users"""
-        queryset = self.queryset
-        return queryset.filter(
-            user=self.request.user
-        ).order_by('-id').distinct()
-    # "SELECT * FROM contas where user_id = 1;"; 
+    # def get_queryset(self):
+    #     """Get account for authenticated users"""
+    #     if self.request.user.id is not None:
+    #         if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+    #             raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+    #     else:
+    #         raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+    #     queryset = self.queryset
+    #     return queryset.filter(
+    #         user=self.request.user
+    #     ).order_by('-id').distinct()
+    # # "SELECT * FROM contas where user_id = 1;"; 
     
+    @action(detail=False, methods=['get'])
+    def me(self, request, pk=None):
+        if self.request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        
+        me_account = request.user.account.id
+        account_object = Account.objects.get(id=me_account)
+        account_serializer = serializers.AccountDetailSerializer(account_object)
+        return Response(account_serializer.data)
+        
+            
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return serializers.AccountDetailSerializer
+        elif self.action == "withdraw":
+            return serializers.WithdrawSerializer
+        elif self.action == "deposit":
+            return serializers.WithdrawSerializer
+        elif self.action == "transfer":
+            return serializers.TransactionAddSerializer
         
         return serializers.AccountSerializer
 
@@ -57,6 +82,11 @@ class AccountViewSet(viewsets.ReadOnlyModelViewSet):
         
     @action(methods=['POST'], detail=False, url_path="withdraw")
     def withdraw(self, request, pk=None):
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
         account = Account.objects.filter(pk=self.request.user.id).first()
         
         serializers_received = serializers.WithdrawSerializer(data=request.data)
@@ -83,6 +113,11 @@ class AccountViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(methods=['POST'], detail=False, url_path="deposit")
     def deposit(self, request, pk=None):
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
         account = Account.objects.filter(pk=self.request.user.id).first()
         
         serializers_received = serializers.DepositSerializer(data=request.data)
@@ -99,17 +134,8 @@ class AccountViewSet(viewsets.ReadOnlyModelViewSet):
         
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class TrasactionViewSet(viewsets.GenericViewSet):
-    queryset = Transaction.objects.all()
-    # serializer_class = serializers.TransactionDetailSerializer
-    
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return serializers.TransactionDetailSerializer
-        return serializers.TransactionAddSerializer
-    
-    def create(self, request):
+    @action(methods=['POST'], detail=False, url_path="transfer")
+    def transfer(self, request, pk=None):
         if request.user.id is not None:
             if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
                 sender = request.user.account.id
@@ -120,27 +146,101 @@ class TrasactionViewSet(viewsets.GenericViewSet):
         receiver = request.data.get("receiver")
         value = request.data.get("value")
         description = request.data.get("description")
-                        
-        transaction_serializer = serializers.TransactionSerializer(
-            data={
-                "sender": sender,
-                "receiver": receiver,
-                "value": value,
-                "description": description
-            }
-        )
-        print(transaction_serializer)
-        transaction_serializer.is_valid(raise_exception=True)
-        transaction_serializer.save()
         
-        account_sender = Account.objects.get(id=sender)
-        account_sender.balance -= value 
-        account_sender.save()
+        if not decimal.Decimal(value).compare(0) >= 0:
+            # If trys to transfer <=0
+            return Response({'message': 'Invalid value for transfer'}, status=status.HTTP_403_FORBIDDEN)
         
+        elif Account.objects.get(id=sender).balance.compare(decimal.Decimal(value)) == -1:
+            # if there is no balance enough
+            return Response({'message': 'No balance enough'}, status=status.HTTP_403_FORBIDDEN)
         
-        account_receiver = Account.objects.get(id=receiver)
-        account_receiver.balance += value
-        account_receiver.save()
+        else:
+            if not Account.objects.get(id=receiver).created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The receiver is still in analysis", code=status.HTTP_403_FORBIDDEN)
+            
+            if sender == receiver:
+                raise PermissionDenied(detail="The receiver and sender cannot be the same", code=status.HTTP_403_FORBIDDEN)
+            
+            transaction_serializer = serializers.TransactionSerializer(
+                data={
+                    "sender": sender,
+                    "receiver": receiver,
+                    "value": value,
+                    "description": description
+                }
+            )
+            transaction_serializer.is_valid(raise_exception=True)
+            transaction_serializer.save()
+            
+            account_sender = Account.objects.get(id=sender)
+            sender_balance = decimal.Decimal(account_sender.balance)
+            account_sender.balance = sender_balance - decimal.Decimal(value)
+            account_sender.save()
+            
+            
+            account_receiver = Account.objects.get(id=receiver)
+            receiver_balance = decimal.Decimal(account_receiver.balance)
+            account_receiver.balance = receiver_balance + decimal.Decimal(value)
+            account_receiver.save()
 
 
-        return Response({'message': 'Transfered'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Transfered'}, status=status.HTTP_200_OK)
+
+# class TrasactionViewSet(viewsets.GenericViewSet):
+#     queryset = Transaction.objects.all()
+#     # serializer_class = serializers.TransactionDetailSerializer
+    
+#     def get_serializer_class(self):
+#         if self.action == 'retrieve':
+#             return serializers.TransactionDetailSerializer
+#         return serializers.TransactionAddSerializer
+    
+#     def create(self, request):
+#         if request.user.id is not None:
+#             if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+#                 sender = request.user.account.id
+#             else:
+#                 raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+#         else:
+#             raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+#         receiver = request.data.get("receiver")
+#         value = request.data.get("value")
+#         description = request.data.get("description")
+        
+#         if not decimal.Decimal(value).compare(0) >= 0:
+#             # If trys to transfer <=0
+#             return Response({'message': 'Invalid value for transfer'}, status=status.HTTP_403_FORBIDDEN)
+        
+#         elif Account.objects.get(id=sender).balance.compare(decimal.Decimal(value)) == -1:
+#             # if there is no balance enough
+#             return Response({'message': 'No balance enough'}, status=status.HTTP_403_FORBIDDEN)
+        
+#         else:
+#             if not Account.objects.get(id=receiver).created_at + timedelta(minutes=5) <= timezone.now():
+#                 raise PermissionDenied(detail="The receiver is still in analysis", code=status.HTTP_403_FORBIDDEN)
+            
+#             transaction_serializer = serializers.TransactionSerializer(
+#                 data={
+#                     "sender": sender,
+#                     "receiver": receiver,
+#                     "value": value,
+#                     "description": description
+#                 }
+#             )
+#             transaction_serializer.is_valid(raise_exception=True)
+#             transaction_serializer.save()
+            
+#             account_sender = Account.objects.get(id=sender)
+#             sender_balance = decimal.Decimal(account_sender.balance)
+#             account_sender.balance = sender_balance - decimal.Decimal(value)
+#             account_sender.save()
+            
+            
+#             account_receiver = Account.objects.get(id=receiver)
+#             receiver_balance = decimal.Decimal(account_receiver.balance)
+#             account_receiver.balance = receiver_balance + decimal.Decimal(value)
+#             account_receiver.save()
+
+
+#             return Response({'message': 'Transfered'}, status=status.HTTP_200_OK)

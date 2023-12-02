@@ -51,14 +51,14 @@ class TransactionAddSerializer(serializers.ModelSerializer):
 
 
 class DepositSerializer(serializers.Serializer):
-    value = serializers.DecimalField(max_digits=5, decimal_places=2)
+    value = serializers.DecimalField(max_digits= 10, decimal_places=2, min_value=1)
 
     class Meta:
         fields = ['value']
 
 
 class WithdrawSerializer(serializers.Serializer):
-    value = serializers.DecimalField(max_digits=5, decimal_places=2)
+    value = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)
 
     class Meta:
         fields = ['value']
