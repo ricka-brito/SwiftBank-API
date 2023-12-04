@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from core.models import Account, Transaction
+from core.models import Account, Transaction, Loan, LoanInstallments
 
 class AccountSerializer(serializers.ModelSerializer):
     class Meta: 
@@ -63,3 +63,12 @@ class WithdrawSerializer(serializers.Serializer):
     class Meta:
         fields = ['value']
     
+class LoanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Loan
+        fields = ['account','installments','value']
+
+class LoanInstallmentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LoanInstallments
+        fields = '__all__'

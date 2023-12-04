@@ -1,7 +1,8 @@
 """
 Models de toda a aplicação
 """
-import os 
+import os
+from urllib import request 
 import uuid 
 from django.conf import settings
 from django.db import models
@@ -129,4 +130,21 @@ class Transaction(models.Model):
     transaction_type = models.CharField(max_length=2, choices=TransactionTypes.choices)
     created_at = models.DateTimeField(default=timezone.now)
 
-    
+
+class Loan(models.Model):
+    """Model for loan"""
+
+    account = models.ForeignKey(Account, on_delete=models.PROTECT)
+    installments = models.IntegerField()
+    request_date = models.DateTimeField(default=timezone.now)
+    payed = models.BooleanField(default=False)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    fees = models.DecimalField(max_digits=5, decimal_places=3)
+
+class LoanInstallments(models.Model):
+    """Model of installments of a loan"""
+
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE)
+    payed_date = models.DateTimeField(null=True)
+    due_date = models.DateTimeField(null=False)
+    value = models.DecimalField(max_digits=10,decimal_places=2)
