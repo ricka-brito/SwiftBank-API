@@ -12,7 +12,7 @@ from django.contrib.auth.models import (
 )
 
 from django.utils import timezone
-
+from django.utils.translation import gettext_lazy as _
 
 def user_image_field(instance, filename):
     """Generate file path for new user image."""
@@ -115,8 +115,18 @@ class Account(models.Model):
 class Transaction(models.Model):
     """Model for transaction"""
     
-    sender = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="sender", null=False)
-    receiver = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="receiver", null=False)
+    class TransactionTypes(models.TextChoices):
+        TRANSFER = 'TR', _('Transfer')
+        WITHDRAW = 'WD', _('Withdraw')
+        DEPOSIT = 'DP', _('Deposit')
+        CREDIT = 'CR', _('Credit')
+        LOAN = 'LN', _('Loan')
+    
+    sender = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="sender", null=True, blank=True)
+    receiver = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="receiver", null=True, blank=True)
     value = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.CharField(max_length=255, null=True, blank=True)
+    transaction_type = models.CharField(max_length=2, choices=TransactionTypes.choices)
+    created_at = models.DateTimeField(default=timezone.now)
+
     

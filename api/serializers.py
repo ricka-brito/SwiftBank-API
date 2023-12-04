@@ -25,7 +25,7 @@ class TransactionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Transaction
-        fields = ['id', 'sender', 'receiver', 'value', 'description']
+        fields = ['id', 'sender', 'receiver', 'value', 'description', 'transaction_type']
         read_only_fields = ['id']
 
 
@@ -35,8 +35,8 @@ class TransactionDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Transaction
-        fields = ['id', 'sender', 'receiver', 'value', 'description']
-        read_only_fields = ['id', 'sender']
+        fields = ['id', 'sender', 'receiver', 'value', 'description', 'transaction_type', 'created_at']
+        read_only_fields = ['id', 'sender', 'created_at']
 
 class TransactionAddSerializer(serializers.ModelSerializer):
     receiver = serializers.PrimaryKeyRelatedField(

@@ -6,6 +6,7 @@ app_name = 'api'
 
 router = DefaultRouter()
 router.register('accounts', views.AccountViewSet)
+
 # router.register('transaction', views.TrasactionViewSet)
 
 # api = views.AccountViewSet.as_view({
