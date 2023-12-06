@@ -2,6 +2,7 @@
 Models de toda a aplicação
 """
 import os
+from random import randint
 from urllib import request 
 import uuid 
 from django.conf import settings
@@ -101,7 +102,7 @@ class Account(models.Model):
 
     agency = models.CharField(max_length=4, default="0001")
     number = models.CharField(max_length=8)
-    balance = models.DecimalField(max_digits=5, decimal_places=2)
+    balance = models.DecimalField(max_digits=10, decimal_places=2)
     user = models.OneToOneField(
         User,
         on_delete=models.DO_NOTHING,
@@ -111,24 +112,6 @@ class Account(models.Model):
     def __str__(self) -> str:
         return f'{self.agency} - {self.number}'
 
-
-
-class Transaction(models.Model):
-    """Model for transaction"""
-    
-    class TransactionTypes(models.TextChoices):
-        TRANSFER = 'TR', _('Transfer')
-        WITHDRAW = 'WD', _('Withdraw')
-        DEPOSIT = 'DP', _('Deposit')
-        CREDIT = 'CR', _('Credit')
-        LOAN = 'LN', _('Loan')
-    
-    sender = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="sender", null=True, blank=True)
-    receiver = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="receiver", null=True, blank=True)
-    value = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.CharField(max_length=255, null=True, blank=True)
-    transaction_type = models.CharField(max_length=2, choices=TransactionTypes.choices)
-    created_at = models.DateTimeField(default=timezone.now)
 
 
 class Loan(models.Model):
@@ -148,3 +131,45 @@ class LoanInstallments(models.Model):
     payed_date = models.DateTimeField(null=True)
     due_date = models.DateTimeField(null=False)
     value = models.DecimalField(max_digits=10,decimal_places=2)
+    
+
+# class CreditCard(models.Model):
+#     """Model of credit card"""
+    
+#     account = models.ForeignKey(Account, on_delete=models.PROTECT)
+#     number = models.CharField(max_length=12)
+#     cvv = models.CharField(max_length=3)
+#     expiration_date = models.DateField()
+#     limit = models.DecimalField(max_digits=10,decimal_places=2)
+    
+#     def save(self, *args, **kwargs):
+#         self.number = f"{randint(1000,9999)} {randint(1000,9999)} {randint(1000,9999)} {randint(1000,9999)}"
+#         self.cvv = f"{randint(100,999)}"
+#         self.expiration_date = timezone.localdate() + timezone.timedelta(days=3650)
+
+#         super(CreditCard, self).save(*args, **kwargs)
+
+class Transaction(models.Model):
+    """Model for transaction"""
+    
+    class TransactionTypes(models.TextChoices):
+        TRANSFER = 'TR', _('Transfer')
+        WITHDRAW = 'WD', _('Withdraw')
+        DEPOSIT = 'DP', _('Deposit')
+        CREDIT = 'CR', _('Credit')
+        LOAN = 'LN', _('Loan')
+    
+    sender = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="sender", null=True, blank=True)
+    receiver = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="receiver", null=True, blank=True)
+    value = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.CharField(max_length=255, null=True, blank=True)
+    transaction_type = models.CharField(max_length=2, choices=TransactionTypes.choices)
+    created_at = models.DateTimeField(default=timezone.now)
+    # card = models.ForeignKey(CreditCard, on_delete=models.PROTECT, related_name="transactions", null=True, blank=True)
+
+# class CreditInstallments(models.Model):
+#     # creditId = models.ForeignKey(Credit, on_delete=models.PROTECT, related_name='related_installment')
+#     creditId = models.ForeignKey(Credit, on_delete=models.PROTECT)
+#     payed_date = models.DateTimeField(null=True)
+#     due_date = models.DateTimeField(null=False)
+#     value = models.DecimalField(max_digits=10,decimal_places=2)

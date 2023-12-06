@@ -335,9 +335,17 @@ class LoanViewSet(viewsets.ViewSet):
                         value=installment_price,
                         due_date=due_date.replace(day=15)
                     )
-                    loanInstallment.save() 
+                    loanInstallment.save()
+                    
+                account_sender = Account.objects.get(id=request.user.account.id)
+                sender_balance = decimal.Decimal(account_sender.balance)
+                account_sender.balance = sender_balance + decimal.Decimal(request_amount)
+                account_sender.save()
+            
                 
                 return Response({"loan requested"}, status=status.HTTP_200_OK)
+
+                
         
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -400,7 +408,7 @@ class LoanViewSet(viewsets.ViewSet):
         serializer = serializers.LoanSerializer(paginated_queryset, many=True)
         return paginator.get_paginated_response(serializer.data)
     
-    @action(methods=['GET'], detail=False, url_path="(?P<pk>[^/.]+)")
+    @action(methods=['GET'], detail=False, url_path="statement/(?P<pk>[^/.]+)")
     def loan(self, request, pk):
         if request.user.id is not None:
             if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
