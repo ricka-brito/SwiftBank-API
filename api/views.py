@@ -1,3 +1,5 @@
+from multiprocessing.sharedctypes import Value
+import re
 from rest_framework import (
     viewsets, 
     status
@@ -5,7 +7,7 @@ from rest_framework import (
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt import authentication as authenticationJWT
-from core.models import Account, Transaction
+from core.models import Account, Transaction, LoanInstallments, Loan
 from api import serializers
 import random, decimal
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -15,7 +17,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-
+import math;
 
 class CustomPagination(PageNumberPagination):
     page_size = 10  # Set your desired page size here
@@ -278,7 +280,54 @@ class AccountViewSet(viewsets.ViewSet):
             raise NotFound(detail='Transaction not found', code=status.HTTP_404_NOT_FOUND)
 
 
+
+class LoanViewSet(viewsets.ViewSet):
+    # "SELECT * FROM contas";
+    queryset = Loan.objects.all()
+    authentication_classes = [authenticationJWT.JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return serializers.LoanSerializer
+
+
+    # @action(methods=['POST'], detail=False, url_path="loan")
+    def create(self, request, pk=None):
+        # if request.user.id is not None:
+        #     if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+        #         raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        # else:
+        #     raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        account = Account.objects.filter(pk=self.request.user.id).first()
         
+        serializers_received = serializers.LoanSerializer(data=request.data)
+        
+        if serializers_received.is_valid() and account:
+            installment = serializers_received.validated_data.get('installments')
+            request_amount = decimal.Decimal(serializers_received.validated_data.get('value'))
+            
+            fee = math.log((installment/float(request_amount)), installment)*(-installment/float(request_amount))*math.sqrt(float(request_amount))
+
+            print(fee)
+            print(float(request_amount) + float(request_amount) * fee) 
+            print((float(request_amount) + float(request_amount) * fee)/installment) 
+            # print(float(request_amount) * pow((1 + fee/100), installment)  )
+            # loan = Loan(
+            #     account=account, 
+            #     installment=installment,
+            #     value=request_amount,
+            #     fees=fee
+            #     )
+                
+            
+            return Response({"balance": account.balance}, status=status.HTTP_200_OK)
+
+        
+        return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
         
 # class TrasactionViewSet(viewsets.GenericViewSet):
 #     queryset = Transaction.objects.all()

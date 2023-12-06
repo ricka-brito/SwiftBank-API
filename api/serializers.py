@@ -66,7 +66,7 @@ class WithdrawSerializer(serializers.Serializer):
 class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan
-        fields = ['account','installments','value']
+        fields = ['installments','value']
 
 class LoanInstallmentsSerializer(serializers.ModelSerializer):
     class Meta:
