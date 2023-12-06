@@ -53,6 +53,8 @@ class ManagerUserAPiView(generics.RetrieveUpdateAPIView):
         serializer = UserSerializer(user, data=request.data, partial=True)
 
         profile_image = request.data['image']
+        
+        print(profile_image)
 
         # Save the image to the specified location
         if profile_image:
