@@ -144,7 +144,7 @@ class Loan(models.Model):
 class LoanInstallments(models.Model):
     """Model of installments of a loan"""
 
-    loan = models.ForeignKey(Loan, on_delete=models.CASCADE)
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="installment")
     payed_date = models.DateTimeField(null=True)
     due_date = models.DateTimeField(null=False)
     value = models.DecimalField(max_digits=10,decimal_places=2)

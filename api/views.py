@@ -1,3 +1,4 @@
+import datetime
 from multiprocessing.sharedctypes import Value
 import re
 from rest_framework import (
@@ -18,6 +19,7 @@ from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 import math;
+from dateutil.relativedelta import relativedelta
 
 class CustomPagination(PageNumberPagination):
     page_size = 10  # Set your desired page size here
@@ -105,7 +107,7 @@ class AccountViewSet(viewsets.ViewSet):
                 raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
         else:
             raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
-        account = Account.objects.filter(pk=self.request.user.id).first()
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
         
         serializers_received = serializers.WithdrawSerializer(data=request.data)
         
@@ -147,7 +149,7 @@ class AccountViewSet(viewsets.ViewSet):
                 raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
         else:
             raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
-        account = Account.objects.filter(pk=self.request.user.id).first()
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
         
         serializers_received = serializers.DepositSerializer(data=request.data)
         
@@ -291,44 +293,134 @@ class LoanViewSet(viewsets.ViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return serializers.LoanSerializer
+        if self.action == 'conditions':
+            return serializers.LoanSerializer
 
 
     # @action(methods=['POST'], detail=False, url_path="loan")
     def create(self, request, pk=None):
-        # if request.user.id is not None:
-        #     if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
-        #         raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
-        # else:
-        #     raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
-        account = Account.objects.filter(pk=self.request.user.id).first()
-        
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
+
         serializers_received = serializers.LoanSerializer(data=request.data)
-        
         if serializers_received.is_valid() and account:
             installment = serializers_received.validated_data.get('installments')
             request_amount = decimal.Decimal(serializers_received.validated_data.get('value'))
             
             fee = math.log((installment/float(request_amount)), installment)*(-installment/float(request_amount))*math.sqrt(float(request_amount))
 
-            print(fee)
-            print(float(request_amount) + float(request_amount) * fee) 
-            print((float(request_amount) + float(request_amount) * fee)/installment) 
-            # print(float(request_amount) * pow((1 + fee/100), installment)  )
-            # loan = Loan(
-            #     account=account, 
-            #     installment=installment,
-            #     value=request_amount,
-            #     fees=fee
-            #     )
-                
-            
-            return Response({"balance": account.balance}, status=status.HTTP_200_OK)
+            installment_price = (float(request_amount) + float(request_amount) * fee)/installment
 
+            if installment_price > float(self.request.user.declared_salary) * 2.5:
+                return Response({"Not allowed (installment too high)"}, status=status.HTTP_403_FORBIDDEN)
+            
+            else:
+                loan = Loan(
+                account=account, 
+                installments=installment,
+                value=request_amount,
+                fees=fee
+                )
+                loan.save()
+                
+                for i in range(installment):
+                    due_date = datetime.datetime.now() + relativedelta(months=+(i+1))
+                    due_date = datetime.datetime.combine( due_date , datetime.datetime.min.time())
+                    loanInstallment = LoanInstallments(
+                        loan=loan,
+                        value=installment_price,
+                        due_date=due_date.replace(day=15)
+                    )
+                    loanInstallment.save() 
+                
+                return Response({"loan requested"}, status=status.HTTP_200_OK)
         
         return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['POST'], detail=False, url_path="conditions")
+    def conditions(self, request, pk=None):
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
+
+        serializers_received = serializers.LoanSerializer(data=request.data)
+        if serializers_received.is_valid() and account:
+            installment = serializers_received.validated_data.get('installments')
+            request_amount = decimal.Decimal(serializers_received.validated_data.get('value'))
+            
+            fee = math.log((installment/float(request_amount)), installment)*(-installment/float(request_amount))*math.sqrt(float(request_amount))
+
+            installment_price = (float(request_amount) + float(request_amount) * fee)/installment
+            
+            return Response({"loan_info": {"installments": installment, "request_amount": request_amount, "fee": round(fee, 2), "total": round(float(request_amount) + float(request_amount) * fee, 2), "installment_price" : round(installment_price, 2), "max_installment_value": float(self.request.user.declared_salary) * 2.5}}, status=status.HTTP_200_OK)
+        
+        return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+    @extend_schema(
+    parameters=[
+        OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
+        OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+        OpenApiParameter("payed", OpenApiTypes.BOOL, OpenApiParameter.QUERY),
+    ],
+    )   
+    @action(methods=['GET'], detail=False, url_path="statement")
+    def statement(self, request, pk=None):
+        if request.user.id is not None:
+            if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                user = request.user.account.id
+            else:
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        
+        payed = self.request.query_params.get('payed')
+        
+        print(payed)
+        
+        if payed == "true":
+            queryset = Loan.objects.filter(Q(account=user), payed=True).order_by('-request_date')
+        
+        else:
+            queryset = Loan.objects.filter(Q(account=user)).order_by('-request_date')
+        
+        serializer = serializers.LoanSerializer(queryset, many=True)
 
         
+        paginator = CustomPagination()
+        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        
+        serializer = serializers.LoanSerializer(paginated_queryset, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    
+    @action(methods=['GET'], detail=False, url_path="(?P<pk>[^/.]+)")
+    def loan(self, request, pk):
+        if request.user.id is not None:
+            if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                user = request.user.account.id
+            else:
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            loan = Loan.objects.get(
+                Q(account=user),
+                id=pk
+            )
+            
+            serializer = serializers.LoanDetailSerializer(loan)
+            return Response(serializer.data)
+            
+        except Transaction.DoesNotExist:
+            raise NotFound(detail='Transaction not found', code=status.HTTP_404_NOT_FOUND)
 # class TrasactionViewSet(viewsets.GenericViewSet):
 #     queryset = Transaction.objects.all()
 #     # serializer_class = serializers.TransactionDetailSerializer

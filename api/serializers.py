@@ -66,9 +66,17 @@ class WithdrawSerializer(serializers.Serializer):
 class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan
-        fields = ['installments','value']
+        fields = ['installments','value', 'request_date', 'payed']
+        
 
 class LoanInstallmentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = LoanInstallments
-        fields = '__all__'
+        fields = ['id', 'payed_date', 'due_date', 'value']
+        
+class LoanDetailSerializer(serializers.ModelSerializer):
+    installment = LoanInstallmentsSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Loan
+        fields = ['account', 'installments', 'request_date', 'payed', 'value', 'fees', 'installment']
