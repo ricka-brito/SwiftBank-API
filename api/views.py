@@ -8,7 +8,7 @@ from rest_framework import (
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt import authentication as authenticationJWT
-from core.models import Account, Transaction, LoanInstallments, Loan
+from core.models import Account, Transaction, LoanInstallments, Loan, CreditCard, CreditInstallments
 from api import serializers
 import random, decimal
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -75,7 +75,7 @@ class AccountViewSet(viewsets.ViewSet):
         elif self.action == "deposit":
             return serializers.WithdrawSerializer
         elif self.action == "transfer":
-            return serializers.TransactionAddSerializer
+            return serializers.TransferSerializer
         
         return serializers.AccountSerializer
 
@@ -199,7 +199,7 @@ class AccountViewSet(viewsets.ViewSet):
             return Response({'message': 'No balance enough'}, status=status.HTTP_403_FORBIDDEN)
         
         else:
-            if not Account.objects.get(id=receiver).created_at + timedelta(minutes=5) <= timezone.now():
+            if Account.objects.get(id=receiver).created_at + timedelta(minutes=5) >= timezone.now():
                 raise PermissionDenied(detail="The receiver is still in analysis", code=status.HTTP_403_FORBIDDEN)
             
             if sender == receiver:
@@ -295,6 +295,7 @@ class LoanViewSet(viewsets.ViewSet):
             return serializers.LoanSerializer
         if self.action == 'conditions':
             return serializers.LoanSerializer
+        return serializers.LoanSerializer
 
 
     # @action(methods=['POST'], detail=False, url_path="loan")
@@ -408,7 +409,7 @@ class LoanViewSet(viewsets.ViewSet):
         serializer = serializers.LoanSerializer(paginated_queryset, many=True)
         return paginator.get_paginated_response(serializer.data)
     
-    @action(methods=['GET'], detail=False, url_path="statement/(?P<pk>[^/.]+)")
+    @action(methods=['GET'], detail=False, url_path="details/(?P<pk>[^/.]+)")
     def loan(self, request, pk):
         if request.user.id is not None:
             if self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
@@ -486,3 +487,105 @@ class LoanViewSet(viewsets.ViewSet):
 
 
 #             return Response({'message': 'Transfered'}, status=status.HTTP_200_OK)
+
+
+
+class CreditViewSet(viewsets.ViewSet):
+    # "SELECT * FROM contas";
+    queryset = CreditCard.objects.all()
+    authentication_classes = [authenticationJWT.JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return serializers.CreditCardSerializer
+        if self.action == 'transaction':
+            return serializers.CreditTransactionSerializer
+
+    
+    def create(self, request, pk=None):
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
+
+        serializers_received = serializers.CreditCardSerializer(data=request.data)
+        if serializers_received.is_valid() and account:
+            limit = decimal.Decimal(serializers_received.validated_data.get('limit'))
+            
+            if limit.compare(0) == 1:
+                
+            
+                card = CreditCard(
+                account=account, 
+                limit=limit
+                )
+                card.save()
+                
+                return Response({"card created"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"Card limit should be greater than 1"}, status=status.HTTP_403_FORBIDDEN)
+
+
+    @action(methods=['POST'], detail=False, url_path="transaction")
+    def transaction(self, request, pk=None):
+        if request.user.id is not None:
+            if not self.request.user.created_at + timedelta(minutes=5) <= timezone.now():
+                raise PermissionDenied(detail="The user is still in analysis", code=status.HTTP_403_FORBIDDEN)
+        else:
+            raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
+        account = Account.objects.filter(pk=self.request.user.account.id).first()
+
+        serializers_received = serializers.CreditTransactionSerializer(data=request.data)
+        if serializers_received.is_valid() and account:
+            installment = serializers_received.validated_data.get('installments')
+            value = decimal.Decimal(serializers_received.validated_data.get('value'))
+            card = serializers_received.validated_data.get('card')
+            description = serializers_received.validated_data.get('description')
+            
+            queryset = Transaction.objects.filter(
+            Q(card=card)
+            ).order_by('-created_at')
+            
+            serializer = serializers.TransactionDetailSerializer(queryset, many=True)
+            card_object = CreditCard.objects.filter(pk=card).first()
+
+            total = 0
+                        
+            if len(serializer.data) > 0:
+                for i in serializer.data:
+                    total += float(i['value'])
+            
+            if float(value) + total <= card_object.limit:
+                newTransac = Transaction(
+                    value=value,
+                    description=description,
+                    transaction_type="CR",
+                    card=card_object,
+                    installments=installment
+                )
+                
+                newTransac.save()
+                
+                
+                
+                for i in range(installment):
+                    due_date = datetime.datetime.now() + relativedelta(months=+(i+1))
+                    due_date = datetime.datetime.combine( due_date , datetime.datetime.min.time())
+                    creditInstallment = CreditInstallments(
+                        creditCard=card_object,
+                        value=float(value)/installment,
+                        due_date=due_date.replace(day=15),
+                        transaction=newTransac
+                    )
+                    creditInstallment.save()                
+                        
+            
+                return Response({"criado"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"The value exceed your limit"}, status=status.HTTP_200_OK)
+        
+        return Response(serializers_received.errors, status=status.HTTP_400_BAD_REQUEST) 

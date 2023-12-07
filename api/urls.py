@@ -7,6 +7,7 @@ app_name = 'api'
 router = DefaultRouter()
 router.register('accounts', views.AccountViewSet)
 router.register('loan', views.LoanViewSet)
+router.register('credit_card', views.CreditViewSet)
 
 # router.register('transaction', views.TrasactionViewSet)
 

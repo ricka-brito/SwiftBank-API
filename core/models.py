@@ -94,7 +94,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'cpf'
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name}'
+        return f'{self.first_name}'
 
     
 class Account(models.Model):
@@ -133,21 +133,21 @@ class LoanInstallments(models.Model):
     value = models.DecimalField(max_digits=10,decimal_places=2)
     
 
-# class CreditCard(models.Model):
-#     """Model of credit card"""
+class CreditCard(models.Model):
+    """Model of credit card"""
     
-#     account = models.ForeignKey(Account, on_delete=models.PROTECT)
-#     number = models.CharField(max_length=12)
-#     cvv = models.CharField(max_length=3)
-#     expiration_date = models.DateField()
-#     limit = models.DecimalField(max_digits=10,decimal_places=2)
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name='card')
+    number = models.CharField(max_length=16)
+    cvv = models.CharField(max_length=3)
+    expiration_date = models.DateField()
+    limit = models.DecimalField(max_digits=10,decimal_places=2)
     
-#     def save(self, *args, **kwargs):
-#         self.number = f"{randint(1000,9999)} {randint(1000,9999)} {randint(1000,9999)} {randint(1000,9999)}"
-#         self.cvv = f"{randint(100,999)}"
-#         self.expiration_date = timezone.localdate() + timezone.timedelta(days=3650)
+    def save(self, *args, **kwargs):
+        self.number = f"{randint(1000,9999)}{randint(1000,9999)}{randint(1000,9999)}{randint(1000,9999)}"
+        self.cvv = f"{randint(100,999)}"
+        self.expiration_date = timezone.now() + timezone.timedelta(days=3650)
 
-#         super(CreditCard, self).save(*args, **kwargs)
+        super(CreditCard, self).save(*args, **kwargs)
 
 class Transaction(models.Model):
     """Model for transaction"""
@@ -165,11 +165,13 @@ class Transaction(models.Model):
     description = models.CharField(max_length=255, null=True, blank=True)
     transaction_type = models.CharField(max_length=2, choices=TransactionTypes.choices)
     created_at = models.DateTimeField(default=timezone.now)
-    # card = models.ForeignKey(CreditCard, on_delete=models.PROTECT, related_name="transactions", null=True, blank=True)
+    card = models.ForeignKey(CreditCard, on_delete=models.PROTECT, related_name="transactions", null=True, blank=True)
+    installments = models.IntegerField(default=1)
 
-# class CreditInstallments(models.Model):
-#     # creditId = models.ForeignKey(Credit, on_delete=models.PROTECT, related_name='related_installment')
-#     creditId = models.ForeignKey(Credit, on_delete=models.PROTECT)
-#     payed_date = models.DateTimeField(null=True)
-#     due_date = models.DateTimeField(null=False)
-#     value = models.DecimalField(max_digits=10,decimal_places=2)
+class CreditInstallments(models.Model):
+    # creditId = models.ForeignKey(Credit, on_delete=models.PROTECT, related_name='related_installment')
+    creditCard = models.ForeignKey(CreditCard, on_delete=models.PROTECT)
+    payed_date = models.DateTimeField(null=True)
+    due_date = models.DateTimeField(null=False)
+    value = models.DecimalField(max_digits=10,decimal_places=2)
+    transaction = models.ForeignKey(Transaction, on_delete=models.PROTECT, related_name="transaction")

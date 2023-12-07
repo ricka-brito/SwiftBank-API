@@ -4,7 +4,7 @@ Serializer for the user API.
 import decimal
 import random
 from django.contrib.auth import get_user_model, authenticate
-from core.models import Address
+from core.models import Address, CreditCard
 
 from rest_framework import serializers
 
@@ -25,6 +25,7 @@ class AddressSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the user object"""
     addresses = AddressSerializer(many=True)
+    account = AccountDetailSerializer(read_only=True)
     class Meta:
         model = get_user_model()
         fields = ['id','email', 'password', 'first_name', 'cpf', 'created_at', 'url_imagem', 'phone_number', 'declared_salary', 'addresses', 'account']
@@ -59,6 +60,12 @@ class UserSerializer(serializers.ModelSerializer):
         )
                 
         account.save()
+        
+        card = CreditCard(
+            account=account,
+            limit=validated_data['declared_salary']*15
+        )
+        card.save()
         return user
     
     def update(self, instance, validated_data):
