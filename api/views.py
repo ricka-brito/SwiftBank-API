@@ -8,7 +8,7 @@ from rest_framework import (
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt import authentication as authenticationJWT
-from core.models import Account, Transaction, LoanInstallments, Loan, CreditCard, CreditInstallments
+from core.models import Account, Transaction, LoanInstallments, Loan, CreditCard, CreditInstallments, User
 from api import serializers
 import random, decimal
 from rest_framework.exceptions import PermissionDenied, NotFound
@@ -247,8 +247,11 @@ class AccountViewSet(viewsets.ViewSet):
         else:
             raise PermissionDenied(detail='Not authenticated', code=status.HTTP_403_FORBIDDEN)
         
+        card = CreditCard.objects.filter(Q(account=self.request.user.account.id))
+        print(card)
+        
         queryset = Transaction.objects.filter(
-            Q(sender=user) | Q(receiver=user)
+            Q(sender=user) | Q(receiver=user) | Q(card__in=card)
         ).order_by('-created_at')
         serializer = serializers.TransactionDetailSerializer(queryset, many=True)
 

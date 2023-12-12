@@ -49,6 +49,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 class TransactionDetailSerializer(serializers.ModelSerializer):
     sender = AccountSerializer()
     receiver = AccountSerializer()
+    card = CreditCardSerializer()
     
     class Meta:
         model = Transaction
